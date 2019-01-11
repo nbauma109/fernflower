@@ -6,6 +6,7 @@ import org.jetbrains.java.decompiler.main.Fernflower;
 import org.jetbrains.java.decompiler.main.extern.IBytecodeProvider;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
 import org.jetbrains.java.decompiler.main.extern.IResultSaver;
+import org.jetbrains.java.decompiler.struct.ContextUnit;
 import org.jetbrains.java.decompiler.util.InterpreterUtil;
 
 import java.io.*;
@@ -18,15 +19,20 @@ import java.util.zip.ZipFile;
 import java.util.zip.ZipOutputStream;
 
 public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
+	
   @SuppressWarnings("UseOfSystemOutOrSystemErr")
   public static void main(String[] args) {
-    if (args.length < 2) {
-      System.out.println(
-        "Usage: java -jar fernflower.jar [-<option>=<value>]* [<source>]+ <destination>\n" +
-        "Example: java -jar fernflower.jar -dgs=true c:\\my\\source\\ c:\\my.jar d:\\decompiled\\");
+	  
+		if (args.length < 2 || System.getProperty("dest.package") == null || System.getProperty("target.type") == null
+				|| System.getProperty("impl.type") == null || System.getProperty("ctx.class") == null || System.getProperty("thisvar.subject") == null) {
+		      System.out.println(
+        "Usage: java -Dthisvar.subject=<value> -Dctx.class=<value> -Dimpl.type=(ServerImpl|ClientImpl) -Dtarget.type=(class|interface) -Ddest.package=<value> org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler [<source>]+ <destination>\n" +
+        "Example: java -Dthisvar.subject=org.mycompany.myservice.MyServiceProvider.getService() -Dctx.class=org.mycompany.myservice.MyContext -Dimpl.type=ServerImpl -Dtarget.type=class -Ddest.package=org.mycompany.myservice org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler c:\\my\\source\\ c:\\my.jar d:\\decompiled\\");
       return;
     }
 
+	
+		
     Map<String, Object> mapOptions = new HashMap<>();
     List<File> sources = new ArrayList<>();
     List<File> libraries = new ArrayList<>();
@@ -68,12 +74,20 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
       System.out.println("error: destination '" + destination + "' is not a directory");
       return;
     }
+    
+    
 
     PrintStreamLogger logger = new PrintStreamLogger(System.out);
     ConsoleDecompiler decompiler = new ConsoleDecompiler(destination, mapOptions, logger);
 
     for (File source : sources) {
-      decompiler.addSource(source);
+		decompiler.addSource(source);
+		try {
+			generateServerBean(source.getName(), destination);
+			generateLocalInterface(source.getName(), destination);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
     }
     for (File library : libraries) {
       decompiler.addLibrary(library);
@@ -82,7 +96,67 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
     decompiler.decompileContext();
   }
 
-  @SuppressWarnings("UseOfSystemOutOrSystemErr")
+  private static void generateLocalInterface(String inputFileName, File destDir) throws IOException {
+		String object = inputFileName.replaceAll("ServerImpl.*", "");
+		String interfaceName =  "CtxLocal" + object;
+		try(BufferedWriter bw = new BufferedWriter(new FileWriter(new File(destDir, interfaceName + ".java")))){
+			bw.write("package ");
+			bw.write(System.getProperty("dest.package"));
+			bw.write(";");
+			bw.newLine();
+			bw.newLine();
+			bw.write("public interface CtxLocal");
+			bw.write(object);
+			bw.write(" extends CtxRemote");
+			bw.write(object);
+			bw.write(" {");
+			bw.newLine();
+			bw.write("}");
+		}
+  }
+
+  private static void generateServerBean(String inputFileName, File destDir) throws IOException {
+	String object = inputFileName.replaceAll("ServerImpl.*", "");
+	String beanName = "Ctx" + object + "ServerBean";
+	try(BufferedWriter bw = new BufferedWriter(new FileWriter(new File(destDir, beanName + ".java")))){
+		bw.write("package ");
+		bw.write(System.getProperty("dest.package"));
+		bw.write(";");
+		bw.newLine();
+		bw.newLine();
+		bw.write("import javax.ejb.Local;");
+		bw.newLine();
+		bw.write("import javax.ejb.Remote;");
+		bw.newLine();
+		bw.write("import javax.ejb.Stateless;");
+		bw.newLine();
+		bw.newLine();
+		bw.write("@Stateless(name=\"");
+		bw.write(System.getProperty("dest.package"));
+		bw.write(".CtxRemote");
+		bw.write(object);
+		bw.write("\")");
+		bw.newLine();
+		bw.write("@Remote(CtxRemote");
+		bw.write(object);
+		bw.write(".class)");
+		bw.newLine();
+		bw.write("@Local(CtxLocal");
+		bw.write(object);
+		bw.write(".class)");
+		bw.newLine();
+		bw.write("public class ");
+		bw.write(beanName);
+		bw.write(" extends Ctx");
+		bw.write(object);
+		bw.write("ServerImpl {");
+		bw.newLine();
+		bw.write("}");
+		bw.newLine();
+	}
+  }
+
+@SuppressWarnings("UseOfSystemOutOrSystemErr")
   private static void addPath(List<File> list, String path) {
     File file = new File(path);
     if (file.exists()) {

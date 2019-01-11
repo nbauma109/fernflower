@@ -228,7 +228,7 @@ public class NewExprent extends Exprent {
       }
       else {
         TextBuffer clsBuf = new TextBuffer();
-        new ClassWriter().classToJava(child, clsBuf, indent, tracer);
+        new ClassWriter().classToJava(child, clsBuf, indent, tracer, "");
         buf.append(clsBuf);
         tracer.incrementCurrentSourceLine(clsBuf.countLines());
       }

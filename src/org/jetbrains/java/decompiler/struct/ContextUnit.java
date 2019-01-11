@@ -100,7 +100,7 @@ public class ContextUnit {
               if (DecompilerContext.getOption(IFernflowerPreferences.BYTECODE_SOURCE_MAPPING)) {
                 mapping = DecompilerContext.getBytecodeSourceMapper().getOriginalLinesMapping();
               }
-              resultSaver.saveClassFile(filename, cl.qualifiedName, entryName, content, mapping);
+              resultSaver.saveClassFile(filename, cl.qualifiedName, getTargetName(entryName), content, mapping);
             }
           }
         }
@@ -131,12 +131,25 @@ public class ContextUnit {
           String entryName = decompiledData.getClassEntryName(cl, classEntries.get(i));
           if (entryName != null) {
             String content = decompiledData.getClassContent(cl);
+            if(System.getProperty("ctx.class") != null) {
+          	  entryName = "Ctx" + entryName;
+            }
             resultSaver.saveClassEntry(archivePath, filename, cl.qualifiedName, entryName, content);
           }
         }
 
         resultSaver.closeArchive(archivePath, filename);
     }
+  }
+
+  public static String getTargetName(String entryName) {
+	String targetType = System.getProperty("target.type");
+	if("interface".equals(targetType)) {
+	  entryName = "CtxRemote" + entryName.replace("ServerImpl", "");
+	} else {
+	  entryName = "Ctx" + entryName.replace("ServerImpl", System.getProperty("impl.type"));
+	}
+	return entryName;
   }
 
   public void setManifest(Manifest manifest) {

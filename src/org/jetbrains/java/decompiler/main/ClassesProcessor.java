@@ -296,7 +296,8 @@ public class ClassesProcessor implements CodeConstants {
     return true;
   }
 
-  public void writeClass(StructClass cl, TextBuffer buffer) throws IOException {
+  public void writeClass(StructClass cl, TextBuffer buffer) throws IOException, SecurityException, ClassNotFoundException {
+	  
     ClassNode root = mapRootClasses.get(cl.qualifiedName);
     if (root.type != ClassNode.CLASS_ROOT) {
       return;
@@ -320,20 +321,18 @@ public class ClassesProcessor implements CodeConstants {
       new NestedMemberAccess().propagateMemberAccess(root);
 
       TextBuffer classBuffer = new TextBuffer(AVERAGE_CLASS_SIZE);
-      new ClassWriter().classToJava(root, classBuffer, 0, null);
+      String packageName = buildPackageName(cl);
+      new ClassWriter().classToJava(root, classBuffer, 0, null, packageName);
 
-      int index = cl.qualifiedName.lastIndexOf("/");
-      if (index >= 0) {
-        String packageName = cl.qualifiedName.substring(0, index).replace('/', '.');
-
-        buffer.append("package ");
-        buffer.append(packageName);
-        buffer.append(";");
-        buffer.appendLineSeparator();
-        buffer.appendLineSeparator();
-      }
-
-      int import_lines_written = importCollector.writeImports(buffer);
+      if(System.getProperty("dest.package").length() > 0) {
+		buffer.append("package ");
+		buffer.append(System.getProperty("dest.package"));
+		buffer.append(";");
+		buffer.appendLineSeparator();
+		buffer.appendLineSeparator();
+	  }
+    
+      int import_lines_written = importCollector.writeImports(buffer, packageName);
       if (import_lines_written > 0) {
         buffer.appendLineSeparator();
       }
@@ -359,6 +358,15 @@ public class ClassesProcessor implements CodeConstants {
       DecompilerContext.getLogger().endReadingClass();
     }
   }
+
+private String buildPackageName(StructClass cl) {
+	String packageName = "";
+      int index = cl.qualifiedName.lastIndexOf("/");
+      if (index >= 0) {
+        packageName = cl.qualifiedName.substring(0, index).replace('/', '.');
+      }
+	return packageName;
+}
 
   private static void initWrappers(ClassNode node) {
     if (node.type == ClassNode.CLASS_LAMBDA) {

@@ -150,7 +150,7 @@ public class ImportCollector {
     return result == null ? shortName : result;
   }
 
-  public int writeImports(TextBuffer buffer) {
+  public int writeImports(TextBuffer buffer, String packageName) {
     int importLinesWritten = 0;
 
     List<String> imports = packImports();
@@ -164,6 +164,15 @@ public class ImportCollector {
       importLinesWritten++;
     }
 
+    String targetType = System.getProperty("target.type");
+    if("class".equals(targetType)) {
+	    buffer.append("import ");
+	    buffer.append(packageName);
+	    buffer.append(".*;");
+	    importLinesWritten++;
+	    buffer.appendLineSeparator();
+    }
+    
     return importLinesWritten;
   }
 
