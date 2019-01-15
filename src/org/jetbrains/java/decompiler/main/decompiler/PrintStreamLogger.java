@@ -2,6 +2,7 @@
 package org.jetbrains.java.decompiler.main.decompiler;
 
 import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
+import org.jetbrains.java.decompiler.struct.ContextUnit;
 import org.jetbrains.java.decompiler.util.TextUtil;
 
 import java.io.PrintStream;
@@ -33,10 +34,10 @@ public class PrintStreamLogger extends IFernflowerLogger {
 
   @Override
   public void startReadingClass(String className) {
-    if (accepts(Severity.INFO)) {
-      writeMessage("Decompiling class " + className, Severity.INFO);
-      ++indent;
-    }
+		if (accepts(Severity.INFO)) {
+			writeMessage("Generating " + System.getProperty("dest.package") + "." + ContextUnit.getTargetName(className.substring(1 + className.lastIndexOf('/'))) + " from " + className, Severity.INFO);
+			++indent;
+		}
   }
 
   @Override

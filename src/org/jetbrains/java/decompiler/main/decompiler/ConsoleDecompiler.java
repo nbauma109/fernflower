@@ -24,7 +24,7 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
   public static void main(String[] args) {
 	  
 		if (args.length < 2 || System.getProperty("dest.package") == null || System.getProperty("target.type") == null
-				|| System.getProperty("impl.type") == null || System.getProperty("ctx.class") == null || System.getProperty("thisvar.subject") == null) {
+				|| System.getProperty("impl.type") == null || System.getProperty("ctx.class") == null) {
 		      System.out.println(
         "Usage: java -Dthisvar.subject=<value> -Dctx.class=<value> -Dimpl.type=(ServerImpl|ClientImpl) -Dtarget.type=(class|interface) -Ddest.package=<value> org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler [<source>]+ <destination>\n" +
         "Example: java -Dthisvar.subject=org.mycompany.myservice.MyServiceProvider.getService() -Dctx.class=org.mycompany.myservice.MyContext -Dimpl.type=ServerImpl -Dtarget.type=class -Ddest.package=org.mycompany.myservice org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler c:\\my\\source\\ c:\\my.jar d:\\decompiled\\");
