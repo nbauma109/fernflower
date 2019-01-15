@@ -2,16 +2,11 @@
 package org.jetbrains.java.decompiler.main;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.TreeMap;
-import java.util.TreeSet;
 
 import org.jetbrains.java.decompiler.code.CodeConstants;
 import org.jetbrains.java.decompiler.main.ClassesProcessor.ClassNode;
@@ -35,7 +30,6 @@ import org.jetbrains.java.decompiler.struct.StructField;
 import org.jetbrains.java.decompiler.struct.StructMethod;
 import org.jetbrains.java.decompiler.struct.attr.StructAnnDefaultAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructConstantValueAttribute;
-import org.jetbrains.java.decompiler.struct.attr.StructExceptionsAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructGeneralAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructGenericSignatureAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructLineNumberTableAttribute;
@@ -165,7 +159,7 @@ public class ClassWriter {
     DecompilerContext.setProperty(DecompilerContext.CURRENT_CLASS_NODE, node);
 
     int startLine = tracer != null ? tracer.getCurrentSourceLine() : 0;
-    BytecodeMappingTracer dummy_tracer = new BytecodeMappingTracer(startLine);
+//    BytecodeMappingTracer dummy_tracer = new BytecodeMappingTracer(startLine);
 
     try {
       // last minute processing
@@ -181,6 +175,8 @@ public class ClassWriter {
       Map<MethodBean, Class<? extends Exception>[]> implementedMethods = writeClassDefinition(node, buffer, indent, packageName);
 
       boolean hasContent = false;
+
+/*      
       boolean enumFields = false;
 
       dummy_tracer.incrementCurrentSourceLine(buffer.countLines(start_class_def));
@@ -215,7 +211,7 @@ public class ClassWriter {
         buffer.append(';').appendLineSeparator();
         dummy_tracer.incrementCurrentSourceLine();
       }
-      
+*/      
       // FIXME: fields don't matter at the moment
       startLine += buffer.countLines(start_class_def);
 
@@ -381,15 +377,17 @@ public class ClassWriter {
 					buffer.append(typeName);
 				}
 			}
-			try {
-				Method[] methods = Class.forName(packageName + '.' + typeName).getMethods();
-				for (Method method : methods) {
-					implementedMethods.put(new MethodBean(method), (Class<? extends Exception>[]) method.getExceptionTypes());
+			if(typeName.startsWith("Remote")) {
+				try {
+					Method[] methods = Class.forName(packageName + '.' + typeName).getMethods();
+					for (Method method : methods) {
+						implementedMethods.put(new MethodBean(method), (Class<? extends Exception>[]) method.getExceptionTypes());
+					}
+				} catch (SecurityException e) {
+					throw new RuntimeException(e);
+				} catch (ClassNotFoundException e) {
+					throw new RuntimeException(e);
 				}
-			} catch (SecurityException e) {
-				throw new RuntimeException(e);
-			} catch (ClassNotFoundException e) {
-				throw new RuntimeException(e);
 			}
 		}
 		if (!"interface".equals(targetType)) {
