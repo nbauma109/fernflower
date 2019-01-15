@@ -381,7 +381,8 @@ public class ClassWriter {
 				try {
 					Method[] methods = Class.forName(packageName + '.' + typeName).getMethods();
 					for (Method method : methods) {
-						implementedMethods.put(new MethodBean(method), (Class<? extends Exception>[]) method.getExceptionTypes());
+						MethodBean methodBean = new MethodBean(method);
+						implementedMethods.put(methodBean, (Class<? extends Exception>[]) method.getExceptionTypes());
 					}
 				} catch (SecurityException e) {
 					throw new RuntimeException(e);

@@ -83,11 +83,9 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
     for (File source : sources) {
 		decompiler.addSource(source);
 		try {
-			if("ServerImpl".equals(System.getProperty("impl.type"))) {
-				generateServerBean(source.getName(), destination);
-			}
-			if("interface".equals(System.getProperty("target.type"))) {
+			if("class".equals(System.getProperty("target.type")) && "ServerImpl".equals(System.getProperty("impl.type"))) {
 				generateLocalInterface(source.getName(), destination);
+				generateServerBean(source.getName(), destination);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();

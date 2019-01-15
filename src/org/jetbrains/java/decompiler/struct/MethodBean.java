@@ -19,7 +19,7 @@ public class MethodBean implements Comparable<MethodBean> {
 		this(method.getName());
 		Class<?>[] parameterTypes = method.getParameterTypes();
 		for (Class<?> paramType : parameterTypes) {
-			paramTypes.add(paramType.getTypeName());
+			paramTypes.add(paramType.getTypeName().replace('$', '.'));
 		}
 	}
 

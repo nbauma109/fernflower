@@ -164,14 +164,11 @@ public class ImportCollector {
       importLinesWritten++;
     }
 
-    String targetType = System.getProperty("target.type");
-    if("class".equals(targetType)) {
-	    buffer.append("import ");
-	    buffer.append(packageName);
-	    buffer.append(".*;");
-	    importLinesWritten++;
-	    buffer.appendLineSeparator();
-    }
+	buffer.append("import ");
+	buffer.append(packageName);
+	buffer.append(".*;");
+	importLinesWritten++;
+	buffer.appendLineSeparator();
     
     return importLinesWritten;
   }
