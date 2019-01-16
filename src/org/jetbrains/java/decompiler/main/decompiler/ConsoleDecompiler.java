@@ -26,7 +26,7 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
 		if (args.length < 2 || System.getProperty("dest.package") == null || System.getProperty("target.type") == null
 				|| System.getProperty("impl.type") == null || System.getProperty("ctx.class") == null) {
 		      System.out.println(
-        "Usage: java -Dthisvar.subject=<value> -Dctx.class=<value> -Dimpl.type=(ServerImpl|ClientImpl) -Dtarget.type=(class|interface) -Ddest.package=<value> org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler [<source>]+ <destination>\n" +
+        "Usage: java -Dthisvar.subject=<value> -Dctx.class=<value> -Dimpl.type=(ServerImpl|ClientImpl|ServerBean|ClientBean) -Dtarget.type=(class|interface) -Ddest.package=<value> org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler [<source>]+ <destination>\n" +
         "Example: java -Dthisvar.subject=org.mycompany.myservice.MyServiceProvider.getService() -Dctx.class=org.mycompany.myservice.MyContext -Dimpl.type=ServerImpl -Dtarget.type=class -Ddest.package=org.mycompany.myservice org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler c:\\my\\source\\ c:\\my.jar d:\\decompiled\\");
       return;
     }
@@ -83,9 +83,8 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
     for (File source : sources) {
 		decompiler.addSource(source);
 		try {
-			if("class".equals(System.getProperty("target.type")) && "ServerImpl".equals(System.getProperty("impl.type"))) {
+			if("class".equals(System.getProperty("target.type")) && Arrays.asList("ServerImpl", "ServerBean").contains(System.getProperty("impl.type"))) {
 				generateLocalInterface(source.getName(), destination);
-				generateServerBean(source.getName(), destination);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -99,7 +98,7 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
   }
 
   private static void generateLocalInterface(String inputFileName, File destDir) throws IOException {
-		String object = inputFileName.replaceAll("ServerImpl.*", "");
+		String object = inputFileName.replaceFirst("ServerImpl.*", "Parent").replaceFirst("ServerBean.*", "");
 		String interfaceName =  "CtxLocal" + object;
 		try(BufferedWriter bw = new BufferedWriter(new FileWriter(new File(destDir, interfaceName + ".java")))){
 			bw.write("package ");
@@ -117,48 +116,7 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
 		}
   }
 
-  private static void generateServerBean(String inputFileName, File destDir) throws IOException {
-	String object = inputFileName.replaceAll("ServerImpl.*", "");
-	String beanName = "Ctx" + object + "ServerBean";
-	try(BufferedWriter bw = new BufferedWriter(new FileWriter(new File(destDir, beanName + ".java")))){
-		bw.write("package ");
-		bw.write(System.getProperty("dest.package"));
-		bw.write(";");
-		bw.newLine();
-		bw.newLine();
-		bw.write("import javax.ejb.Local;");
-		bw.newLine();
-		bw.write("import javax.ejb.Remote;");
-		bw.newLine();
-		bw.write("import javax.ejb.Stateless;");
-		bw.newLine();
-		bw.newLine();
-		bw.write("@Stateless(name=\"");
-		bw.write(System.getProperty("dest.package"));
-		bw.write(".CtxRemote");
-		bw.write(object);
-		bw.write("\")");
-		bw.newLine();
-		bw.write("@Remote(CtxRemote");
-		bw.write(object);
-		bw.write(".class)");
-		bw.newLine();
-		bw.write("@Local(CtxLocal");
-		bw.write(object);
-		bw.write(".class)");
-		bw.newLine();
-		bw.write("public class ");
-		bw.write(beanName);
-		bw.write(" extends Ctx");
-		bw.write(object);
-		bw.write("ServerImpl {");
-		bw.newLine();
-		bw.write("}");
-		bw.newLine();
-	}
-  }
-
-@SuppressWarnings("UseOfSystemOutOrSystemErr")
+  @SuppressWarnings("UseOfSystemOutOrSystemErr")
   private static void addPath(List<File> list, String path) {
     File file = new File(path);
     if (file.exists()) {

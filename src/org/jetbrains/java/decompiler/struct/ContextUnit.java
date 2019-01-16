@@ -145,9 +145,9 @@ public class ContextUnit {
   public static String getTargetName(String entryName) {
 	String targetType = System.getProperty("target.type");
 	if("interface".equals(targetType)) {
-	  entryName = "CtxRemote" + entryName.replace("ServerImpl", "");
+	  entryName = "CtxRemote" + entryName.replace("ServerImpl", "Parent").replace("ServerBean", "");
 	} else {
-	  entryName = "Ctx" + entryName.replace("ServerImpl", System.getProperty("impl.type"));
+	  entryName = "Ctx" + entryName.replaceFirst("Server(Impl|Bean)", System.getProperty("impl.type"));
 	}
 	return entryName;
   }

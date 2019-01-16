@@ -2,6 +2,8 @@
 package org.jetbrains.java.decompiler.main;
 
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -341,57 +343,52 @@ public class ClassWriter {
       VarType supertype = new VarType(cl.superClass.getString(), true);
       if (!VarType.VARTYPE_OBJECT.equals(supertype)) {
         buffer.append("extends ");
-        if (descriptor != null) {
-          buffer.append(GenericMain.getGenericCastTypeName(descriptor.superclass));
+        String typeName;
+		if (descriptor != null) {
+          typeName = GenericMain.getGenericCastTypeName(descriptor.superclass);
         }
         else {
-          buffer.append(ExprProcessor.getCastTypeName(supertype));
+          typeName = ExprProcessor.getCastTypeName(supertype);
         }
-        buffer.append(' ');
+        String interfaceName = typeName.replaceFirst("(.*)ServerImpl", "Remote$1");
+		addImplementedMethods(implementedMethods, packageName, interfaceName);
+		if("interface".equals(System.getProperty("target.type"))) {
+	        buffer.append("Ctx");
+	        buffer.append(interfaceName);
+	        buffer.append("Parent");
+		} else if(System.getProperty("impl.type").endsWith("Bean")){
+			buffer.append(ContextUnit.getTargetName(typeName).replace("Bean", "Impl"));
+		} else {
+			buffer.append(typeName);
+		}
+		buffer.append(' ');
       }
     }
 
     int[] interfaces = cl.getInterfaces();
 	if (interfaces.length > 0) {
-		if (!"interface".equals(targetType)) {
+		if ("class".equals(targetType)) {
 			buffer.append(isInterface ? "extends " : "implements ");
 		}
 		for (int i = 0; i < interfaces.length; i++) {
-			if (!"interface".equals(targetType)) {
-				if (i > 0) {
-					buffer.append(", ");
-				}
-				if ("ServerImpl".equals(System.getProperty("impl.type"))) {
-					buffer.append("Ctx");
-				}
-			}
 			String typeName;
 			if (descriptor != null) {
 				typeName = GenericMain.getGenericCastTypeName(descriptor.superinterfaces.get(i));
-				if (!"interface".equals(targetType)) {
-					buffer.append(typeName);
-				}
 			} else {
 				typeName = ExprProcessor.getCastTypeName(new VarType(cl.getInterface(i), true));
-				if (!"interface".equals(targetType)) {
-					buffer.append(typeName);
-				}
 			}
-			if(typeName.startsWith("Remote")) {
-				try {
-					Method[] methods = Class.forName(packageName + '.' + typeName).getMethods();
-					for (Method method : methods) {
-						MethodBean methodBean = new MethodBean(method);
-						implementedMethods.put(methodBean, (Class<? extends Exception>[]) method.getExceptionTypes());
-					}
-				} catch (SecurityException e) {
-					throw new RuntimeException(e);
-				} catch (ClassNotFoundException e) {
-					throw new RuntimeException(e);
+			if ("class".equals(targetType) && (typeName.startsWith("Remote")||typeName.startsWith("Local"))) {
+				if (i > 0) {
+					buffer.append(", ");
 				}
+				if (Arrays.asList("ServerImpl", "ServerBean").contains(System.getProperty("impl.type"))) {
+					buffer.append("Ctx");
+				}
+				buffer.append(typeName);
 			}
+			addImplementedMethods(implementedMethods, packageName, typeName);
 		}
-		if (!"interface".equals(targetType)) {
+		if ("class".equals(targetType)) {
 			buffer.append(' ');
 		}
 	}
@@ -400,6 +397,22 @@ public class ClassWriter {
     
 	return implementedMethods;
   }
+
+private void addImplementedMethods(Map<MethodBean, Class<? extends Exception>[]> implementedMethods, String packageName, String typeName) {
+	if(typeName.startsWith("Remote")) {
+		try {
+			Method[] methods = Class.forName(packageName + '.' + typeName).getMethods();
+			for (Method method : methods) {
+				MethodBean methodBean = new MethodBean(method);
+				implementedMethods.put(methodBean, (Class<? extends Exception>[]) method.getExceptionTypes());
+			}
+		} catch (SecurityException e) {
+			throw new RuntimeException(e);
+		} catch (ClassNotFoundException e) {
+			throw new RuntimeException(e);
+		}
+	}
+}
 
   private void fieldToJava(ClassWrapper wrapper, StructClass cl, StructField fd, TextBuffer buffer, int indent, BytecodeMappingTracer tracer) {
     int start = buffer.length();
@@ -870,16 +883,16 @@ public class ClassWriter {
 
 	if(!init) {
 		String implType = System.getProperty("impl.type");
-		if(header && "ServerImpl".equals(implType)) {
+		if(header && Arrays.asList("ServerImpl", "ServerBean").contains(implType)) {
 			buffer.append(System.getProperty("ctx.class"));
 			buffer.append(' ');
 			buffer.append("ctx");
 			paramCount++;
 		}
-		if(!header && "ClientImpl".equals(implType)) {
+		if(!header && Arrays.asList("ClientImpl", "ClientBean").contains(implType)) {
 			buffer.append("new ");
 			buffer.append(System.getProperty("ctx.class"));
-			buffer.append("() ");
+			buffer.append("()");
 			paramCount++;
 		}
 	}
