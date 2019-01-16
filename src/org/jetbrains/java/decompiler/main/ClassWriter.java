@@ -2,25 +2,29 @@
 package org.jetbrains.java.decompiler.main;
 
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 
 import org.jetbrains.java.decompiler.code.CodeConstants;
 import org.jetbrains.java.decompiler.main.ClassesProcessor.ClassNode;
 import org.jetbrains.java.decompiler.main.collectors.BytecodeMappingTracer;
+import org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerPreferences;
 import org.jetbrains.java.decompiler.main.rels.ClassWrapper;
 import org.jetbrains.java.decompiler.main.rels.MethodWrapper;
 import org.jetbrains.java.decompiler.modules.decompiler.ExprProcessor;
+import org.jetbrains.java.decompiler.modules.decompiler.exps.AnnotationExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.ConstExprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.Exprent;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.NewExprent;
+import org.jetbrains.java.decompiler.modules.decompiler.exps.TypeAnnotation;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.RootStatement;
 import org.jetbrains.java.decompiler.modules.decompiler.vars.VarTypeProcessor;
 import org.jetbrains.java.decompiler.modules.decompiler.vars.VarVersionPair;
@@ -29,13 +33,17 @@ import org.jetbrains.java.decompiler.struct.ContextUnit;
 import org.jetbrains.java.decompiler.struct.MethodBean;
 import org.jetbrains.java.decompiler.struct.StructClass;
 import org.jetbrains.java.decompiler.struct.StructField;
+import org.jetbrains.java.decompiler.struct.StructMember;
 import org.jetbrains.java.decompiler.struct.StructMethod;
 import org.jetbrains.java.decompiler.struct.attr.StructAnnDefaultAttribute;
+import org.jetbrains.java.decompiler.struct.attr.StructAnnotationAttribute;
+import org.jetbrains.java.decompiler.struct.attr.StructAnnotationParameterAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructConstantValueAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructGeneralAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructGenericSignatureAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructLineNumberTableAttribute;
 import org.jetbrains.java.decompiler.struct.attr.StructMethodParametersAttribute;
+import org.jetbrains.java.decompiler.struct.attr.StructTypeAnnotationAttribute;
 import org.jetbrains.java.decompiler.struct.consts.PrimitiveConstant;
 import org.jetbrains.java.decompiler.struct.gen.FieldDescriptor;
 import org.jetbrains.java.decompiler.struct.gen.MethodDescriptor;
@@ -283,7 +291,31 @@ public class ClassWriter {
     String key = InterpreterUtil.makeUniqueKey(method.getName(), method.getDescriptor());
     DecompilerContext.getBytecodeSourceMapper().addTracer(cls.qualifiedName, key, tracer);
   }
-
+  
+  private static void generateServerBeanAnnotations(TextBuffer buffer, String object) {
+		buffer.append("import javax.ejb.Local;");
+		buffer.appendLineSeparator();
+		buffer.append("import javax.ejb.Remote;");
+		buffer.appendLineSeparator();
+		buffer.append("import javax.ejb.Stateless;");
+		buffer.appendLineSeparator();
+		buffer.appendLineSeparator();
+		buffer.append("@Stateless(name=\"");
+		buffer.append(System.getProperty("dest.package"));
+		buffer.append(".CtxRemote");
+		buffer.append(object);
+		buffer.append("\")");
+		buffer.appendLineSeparator();
+		buffer.append("@Remote(CtxRemote");
+		buffer.append(object);
+		buffer.append(".class)");
+		buffer.appendLineSeparator();
+		buffer.append("@Local(CtxLocal");
+		buffer.append(object);
+		buffer.append(".class)");
+		buffer.appendLineSeparator();
+  }
+  
   private Map<MethodBean, Class<? extends Exception>[]> writeClassDefinition(ClassNode node, TextBuffer buffer, int indent, String packageName) {
 	  
 	Map<MethodBean, Class<? extends Exception>[]> implementedMethods = new TreeMap<>();
@@ -301,6 +333,7 @@ public class ClassWriter {
     boolean isSynthetic = (flags & CodeConstants.ACC_SYNTHETIC) != 0 || cl.hasAttribute(StructGeneralAttribute.ATTRIBUTE_SYNTHETIC);
     boolean isEnum = DecompilerContext.getOption(IFernflowerPreferences.DECOMPILE_ENUM) && (flags & CodeConstants.ACC_ENUM) != 0;
     boolean isInterface = (flags & CodeConstants.ACC_INTERFACE) != 0;
+    boolean isAnnotation = (flags & CodeConstants.ACC_ANNOTATION) != 0;
 
     
     if (isDeprecated) {
@@ -316,6 +349,11 @@ public class ClassWriter {
       appendComment(buffer, "synthetic class", indent);
     }
 
+    //    appendAnnotations(buffer, indent, cl, -1);
+    if("class".equals(System.getProperty("target.type")) && "ServerBean".equals(System.getProperty("impl.type"))) {
+    	generateServerBeanAnnotations(buffer, node.simpleName.replace("ServerBean", ""));
+    }
+    
     buffer.appendIndent(indent);
 
     if (isEnum) {
@@ -398,21 +436,21 @@ public class ClassWriter {
 	return implementedMethods;
   }
 
-private void addImplementedMethods(Map<MethodBean, Class<? extends Exception>[]> implementedMethods, String packageName, String typeName) {
-	if(typeName.startsWith("Remote")) {
-		try {
-			Method[] methods = Class.forName(packageName + '.' + typeName).getMethods();
-			for (Method method : methods) {
-				MethodBean methodBean = new MethodBean(method);
-				implementedMethods.put(methodBean, (Class<? extends Exception>[]) method.getExceptionTypes());
-			}
-		} catch (SecurityException e) {
-			throw new RuntimeException(e);
-		} catch (ClassNotFoundException e) {
-			throw new RuntimeException(e);
-		}
-	}
-}
+  private void addImplementedMethods(Map<MethodBean, Class<? extends Exception>[]> implementedMethods, String packageName, String typeName) {
+  	if(typeName.startsWith("Remote") || typeName.startsWith("Local")) {
+  		try {
+  			Method[] methods = Class.forName(packageName + '.' + typeName).getMethods();
+  			for (Method method : methods) {
+  				MethodBean methodBean = new MethodBean(method);
+  				implementedMethods.put(methodBean, (Class<? extends Exception>[]) method.getExceptionTypes());
+  			}
+  		} catch (SecurityException e) {
+  			throw new RuntimeException(e);
+  		} catch (ClassNotFoundException e) {
+  			throw new RuntimeException(e);
+  		}
+  	}
+  }
 
   private void fieldToJava(ClassWrapper wrapper, StructClass cl, StructField fd, TextBuffer buffer, int indent, BytecodeMappingTracer tracer) {
     int start = buffer.length();
@@ -1039,6 +1077,72 @@ private void addImplementedMethods(Map<MethodBean, Class<? extends Exception>[]>
 
   private static void appendComment(TextBuffer buffer, String comment, int indent) {
     buffer.appendIndent(indent).append("// $FF: ").append(comment).appendLineSeparator();
+  }
+
+  private static final StructGeneralAttribute.Key[] ANNOTATION_ATTRIBUTES = {
+    StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_ANNOTATIONS, StructGeneralAttribute.ATTRIBUTE_RUNTIME_INVISIBLE_ANNOTATIONS};
+  private static final StructGeneralAttribute.Key[] PARAMETER_ANNOTATION_ATTRIBUTES = {
+    StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_PARAMETER_ANNOTATIONS, StructGeneralAttribute.ATTRIBUTE_RUNTIME_INVISIBLE_PARAMETER_ANNOTATIONS};
+  private static final StructGeneralAttribute.Key[] TYPE_ANNOTATION_ATTRIBUTES = {
+    StructGeneralAttribute.ATTRIBUTE_RUNTIME_VISIBLE_TYPE_ANNOTATIONS, StructGeneralAttribute.ATTRIBUTE_RUNTIME_INVISIBLE_TYPE_ANNOTATIONS};
+
+  private static void appendAnnotations(TextBuffer buffer, int indent, StructMember mb, int targetType) {
+    Set<String> filter = new HashSet<>();
+
+    for (StructGeneralAttribute.Key<?> key : ANNOTATION_ATTRIBUTES) {
+      StructAnnotationAttribute attribute = (StructAnnotationAttribute)mb.getAttribute(key);
+      if (attribute != null) {
+        for (AnnotationExprent annotation : attribute.getAnnotations()) {
+          String text = annotation.toJava(indent, BytecodeMappingTracer.DUMMY).toString();
+          filter.add(text);
+          buffer.append(text).appendLineSeparator();
+        }
+      }
+    }
+
+    appendTypeAnnotations(buffer, indent, mb, targetType, -1, filter);
+  }
+
+  private static void appendParameterAnnotations(TextBuffer buffer, StructMethod mt, int param) {
+    Set<String> filter = new HashSet<>();
+
+    for (StructGeneralAttribute.Key<?> key : PARAMETER_ANNOTATION_ATTRIBUTES) {
+      StructAnnotationParameterAttribute attribute = (StructAnnotationParameterAttribute)mt.getAttribute(key);
+      if (attribute != null) {
+        List<List<AnnotationExprent>> annotations = attribute.getParamAnnotations();
+        if (param < annotations.size()) {
+          for (AnnotationExprent annotation : annotations.get(param)) {
+            String text = annotation.toJava(-1, BytecodeMappingTracer.DUMMY).toString();
+            filter.add(text);
+            buffer.append(text).append(' ');
+          }
+        }
+      }
+    }
+
+    appendTypeAnnotations(buffer, -1, mt, TypeAnnotation.METHOD_PARAMETER, param, filter);
+  }
+
+  private static void appendTypeAnnotations(TextBuffer buffer, int indent, StructMember mb, int targetType, int index, Set<String> filter) {
+    for (StructGeneralAttribute.Key<?> key : TYPE_ANNOTATION_ATTRIBUTES) {
+      StructTypeAnnotationAttribute attribute = (StructTypeAnnotationAttribute)mb.getAttribute(key);
+      if (attribute != null) {
+        for (TypeAnnotation annotation : attribute.getAnnotations()) {
+          if (annotation.isTopLevel() && annotation.getTargetType() == targetType && (index < 0 || annotation.getIndex() == index)) {
+            String text = annotation.getAnnotation().toJava(indent, BytecodeMappingTracer.DUMMY).toString();
+            if (!filter.contains(text)) {
+              buffer.append(text);
+              if (indent < 0) {
+                buffer.append(' ');
+              }
+              else {
+                buffer.appendLineSeparator();
+              }
+            }
+          }
+        }
+      }
+    }
   }
 
   private static final Map<Integer, String> MODIFIERS;

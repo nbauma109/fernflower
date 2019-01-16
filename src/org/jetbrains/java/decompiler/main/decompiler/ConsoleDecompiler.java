@@ -8,6 +8,7 @@ import org.jetbrains.java.decompiler.main.extern.IFernflowerLogger;
 import org.jetbrains.java.decompiler.main.extern.IResultSaver;
 import org.jetbrains.java.decompiler.struct.ContextUnit;
 import org.jetbrains.java.decompiler.util.InterpreterUtil;
+import org.jetbrains.java.decompiler.util.TextBuffer;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -83,7 +84,7 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
     for (File source : sources) {
 		decompiler.addSource(source);
 		try {
-			if("class".equals(System.getProperty("target.type")) && Arrays.asList("ServerImpl", "ServerBean").contains(System.getProperty("impl.type"))) {
+			if("class".equals(System.getProperty("target.type")) && "ServerBean".equals(System.getProperty("impl.type"))) {
 				generateLocalInterface(source.getName(), destination);
 			}
 		} catch (IOException e) {
@@ -98,7 +99,7 @@ public class ConsoleDecompiler implements IBytecodeProvider, IResultSaver {
   }
 
   private static void generateLocalInterface(String inputFileName, File destDir) throws IOException {
-		String object = inputFileName.replaceFirst("ServerImpl.*", "Parent").replaceFirst("ServerBean.*", "");
+		String object = inputFileName.replaceFirst("ServerBean.*", "");
 		String interfaceName =  "CtxLocal" + object;
 		try(BufferedWriter bw = new BufferedWriter(new FileWriter(new File(destDir, interfaceName + ".java")))){
 			bw.write("package ");
