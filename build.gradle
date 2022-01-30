@@ -27,7 +27,6 @@ jar {
 }
 
 java {
-    withJavadocJar()
     withSourcesJar()
 }
 
