@@ -1,2 +1,10 @@
+jdk:
+  - orajdk11
+before_install:
+  - echo "Before Install"
+  - bash ensure-java-11-oracle install
 install:
-- ./gradlew publishToMavenLocal
+  - echo "Install"
+  - if ! bash ensure-java-11-oracle use; then source ~/.sdkman/bin/sdkman-init.sh; fi
+  - java -version
+  - ./gradlew publishToMavenLocal
