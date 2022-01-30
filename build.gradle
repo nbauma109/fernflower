@@ -26,11 +26,17 @@ jar {
   }
 }
 
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
 publishing {
     publications {
-        myDistribution(MavenPublication) {
+        mavenJava(MavenPublication) {
             groupId = 'com.github.nbauma109'
-            artifact jar
+            artifactId = 'fernflower'
+            from components.java
         }
     }
 }
