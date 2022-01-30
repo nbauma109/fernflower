@@ -24,3 +24,12 @@ jar {
     attributes 'Main-Class': 'org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler'
   }
 }
+
+publishing {
+    publications {
+        myDistribution(MavenPublication) {
+            groupId = 'com.github.nbauma109'
+            artifact jar
+        }
+    }
+}
