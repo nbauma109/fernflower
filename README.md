@@ -1,3 +1,5 @@
+[![](https://jitpack.io/v/nbauma109/fernflower.svg)](https://jitpack.io/#nbauma109/fernflower)
+
 ### About Fernflower
 
 Fernflower is the first actually working analytical decompiler for Java and 
