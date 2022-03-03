@@ -1,5 +1,7 @@
 [![](https://jitpack.io/v/nbauma109/fernflower.svg)](https://jitpack.io/#nbauma109/fernflower)
+[![](https://jitci.com/gh/nbauma109/fernflower/svg)](https://jitci.com/gh/nbauma109/fernflower)
 [![CodeQL](https://github.com/nbauma109/fernflower/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/nbauma109/fernflower/actions/workflows/codeql-analysis.yml)
+[![Github Release](https://github.com/nbauma109/fernflower/actions/workflows/release.yml/badge.svg)](https://github.com/nbauma109/fernflower/actions/workflows/release.yml)
 
 ### About Fernflower
 
