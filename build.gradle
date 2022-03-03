@@ -32,9 +32,10 @@ java {
 
 publishing {
     publications {
-        myDistribution(MavenPublication) {
+        mavenJava(MavenPublication) {
             groupId = 'com.github.nbauma109'
-            artifact windowsDistZip
+            artifactId = 'fernflower'
+            from components.java
         }
     }
 }
