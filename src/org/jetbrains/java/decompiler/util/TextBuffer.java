@@ -92,7 +92,12 @@ public class TextBuffer {
     String original = myStringBuilder.toString();
     if (myLineToOffsetMapping == null || myLineToOffsetMapping.isEmpty()) {
       if (myLineMapping != null) {
-        return addOriginalLineNumbers();
+        if (DecompilerContext.getOption(IFernflowerPreferences.UNIT_TEST_MODE)) {
+            return addOriginalLineNumbers();
+        }
+        if (DecompilerContext.getOption(IFernflowerPreferences.DUMP_ORIGINAL_LINES)) {
+            return addOriginalLineNumbersBlock();
+        }
       }
       return original;
     }
@@ -131,6 +136,29 @@ public class TextBuffer {
   }
 
   private String addOriginalLineNumbers() {
+    StringBuilder sb = new StringBuilder();
+    int lineStart = 0, lineEnd;
+    int count = 0, length = myLineSeparator.length();
+    while ((lineEnd = myStringBuilder.indexOf(myLineSeparator, lineStart)) > 0) {
+      ++count;
+      sb.append(myStringBuilder.substring(lineStart, lineEnd));
+      Set<Integer> integers = myLineMapping.get(count);
+      if (integers != null) {
+        sb.append("//");
+        for (Integer integer : integers) {
+          sb.append(' ').append(integer);
+        }
+      }
+      sb.append(myLineSeparator);
+      lineStart = lineEnd + length;
+    }
+    if (lineStart < myStringBuilder.length()) {
+      sb.append(myStringBuilder.substring(lineStart));
+    }
+    return sb.toString();
+  }
+
+  private String addOriginalLineNumbersBlock() {
     StringBuilder sb = new StringBuilder();
     int lineStart = 0;
     int lineEnd;
