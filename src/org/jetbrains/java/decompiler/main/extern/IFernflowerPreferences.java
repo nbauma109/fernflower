@@ -43,8 +43,8 @@ public interface IFernflowerPreferences {
   String INDENT_STRING = "ind";
   String BANNER = "ban";
 
-  String DUMP_ORIGINAL_LINES = "__dump_original_lines__";
-  String UNIT_TEST_MODE = "__unit_test_mode__";
+  String DUMP_ORIGINAL_LINES = "dol";
+  String UNIT_TEST_MODE = "utm";
 
   String LINE_SEPARATOR_WIN = "\r\n";
   String LINE_SEPARATOR_UNX = "\n";
