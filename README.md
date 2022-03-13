@@ -72,6 +72,8 @@ The rest of options can be left as they are: they are aimed at professional reve
 - nls (0): define new line character to be used for output. 0 - '\r\n' (Windows), 1 - '\n' (Unix), default is OS-dependent
 - ind: indentation string (default is 3 spaces)
 - log (INFO): a logging level, possible values are TRACE, INFO, WARN, ERROR
+- bsm (0): bytecode source mapping to obtain source line number corresponding to bytecode offset if available in line number table
+- dol (0): dump original source line numbers in the decompiled output as leading block comments (works together with bsm)
 
 ### Renaming identifiers
 
