@@ -51,7 +51,7 @@ public final class LineNumberUtil {
             while (sc.hasNextLine()) {
                 String line = sc.nextLine();
                 Integer srcLineNumber = lineMapping.get(index + 1);
-                if (srcLineNumber != null) {
+                if (srcLineNumber != null && !"}".equals(line.trim())) {
                     sb.append(String.format(formatStr, srcLineNumber));
                 } else {
                     sb.append(emptyStr);
