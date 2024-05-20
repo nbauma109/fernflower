@@ -1,6 +1,7 @@
-// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.java.decompiler.modules.decompiler.exps;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.java.decompiler.code.CodeConstants;
 import org.jetbrains.java.decompiler.main.ClassWriter;
 import org.jetbrains.java.decompiler.main.ClassesProcessor.ClassNode;
@@ -105,10 +106,19 @@ public class VarExprent extends Exprent {
         buffer.append(" ");
       }
 
-      buffer.append(name == null ? ("var" + index + (this.version == 0 ? "" : "_" + this.version)) : name);
+      buffer.append(name == null ? getName(getVarVersionPair()) : name);
     }
 
     return buffer;
+  }
+
+  public int getVisibleOffset() {
+    return visibleOffset;
+  }
+
+  @NotNull
+  public static String getName(VarVersionPair versionPair) {
+    return "var" + versionPair.var + (versionPair.version == 0 ? "" : "_" + versionPair.version);
   }
 
   public VarVersionPair getVarVersionPair() {
@@ -129,7 +139,7 @@ public class VarExprent extends Exprent {
     return null;
   }
 
-  private void appendDefinitionType(TextBuffer buffer) {
+  void appendDefinitionType(TextBuffer buffer) {
     if (DecompilerContext.getOption(IFernflowerPreferences.USE_DEBUG_VAR_NAMES)) {
       MethodWrapper method = (MethodWrapper)DecompilerContext.getProperty(DecompilerContext.CURRENT_METHOD_WRAPPER);
       if (method != null) {
@@ -171,11 +181,15 @@ public class VarExprent extends Exprent {
   }
 
   @Override
+  public int hashCode() {
+    return Objects.hash(index, version);
+  }
+
+  @Override
   public boolean equals(Object o) {
     if (o == this) return true;
-    if (!(o instanceof VarExprent)) return false;
+    if (!(o instanceof VarExprent ve)) return false;
 
-    VarExprent ve = (VarExprent)o;
     return index == ve.getIndex() &&
            version == ve.getVersion() &&
            Objects.equals(getVarType(), ve.getVarType()); // FIXME: varType comparison redundant?

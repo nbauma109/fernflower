@@ -2,6 +2,8 @@
 package org.jetbrains.java.decompiler.modules.decompiler.sforms;
 
 import org.jetbrains.java.decompiler.code.CodeConstants;
+import org.jetbrains.java.decompiler.main.CancellationManager;
+import org.jetbrains.java.decompiler.main.DecompilerContext;
 import org.jetbrains.java.decompiler.modules.decompiler.exps.*;
 import org.jetbrains.java.decompiler.modules.decompiler.sforms.FlattenStatementsHelper.FinallyPathWrapper;
 import org.jetbrains.java.decompiler.modules.decompiler.stats.*;
@@ -64,6 +66,7 @@ public class SSAUConstructorSparseEx {
   private FastSparseSetFactory<Integer> factory;
 
   public void splitVariables(RootStatement root, StructMethod mt) {
+    CancellationManager cancellationManager = DecompilerContext.getCancellationManager();
 
     FlattenStatementsHelper flatthelper = new FlattenStatementsHelper();
     DirectGraph dgraph = flatthelper.buildDirectGraph(root);
@@ -86,6 +89,7 @@ public class SSAUConstructorSparseEx {
     do {
       //			System.out.println("~~~~~~~~~~~~~ \r\n"+root.toJava());
       ssaStatements(dgraph, updated, false);
+      cancellationManager.checkCanceled();
       //			System.out.println("~~~~~~~~~~~~~ \r\n"+root.toJava());
     }
     while (!updated.isEmpty());
@@ -97,7 +101,7 @@ public class SSAUConstructorSparseEx {
   }
 
   private void ssaStatements(DirectGraph dgraph, HashSet<String> updated, boolean calcLiveVars) {
-
+    CancellationManager cancellationManager = DecompilerContext.getCancellationManager();
     for (DirectNode node : dgraph.nodes) {
 
       updated.remove(node.id);
@@ -109,6 +113,7 @@ public class SSAUConstructorSparseEx {
 
       if (node.exprents != null) {
         for (Exprent expr : node.exprents) {
+          cancellationManager.checkCanceled();
           processExprent(expr, varmaparr, node.statement, calcLiveVars);
         }
       }
@@ -155,7 +160,7 @@ public class SSAUConstructorSparseEx {
     boolean finished = false;
 
     switch (expr.type) {
-      case Exprent.EXPRENT_ASSIGNMENT:
+      case Exprent.EXPRENT_ASSIGNMENT -> {
         AssignmentExprent assexpr = (AssignmentExprent)expr;
         if (assexpr.getCondType() == AssignmentExprent.CONDITION_NONE) {
           Exprent dest = assexpr.getLeft();
@@ -163,11 +168,11 @@ public class SSAUConstructorSparseEx {
             varassign = (VarExprent)dest;
           }
         }
-        break;
-      case Exprent.EXPRENT_FUNCTION:
+      }
+      case Exprent.EXPRENT_FUNCTION -> {
         FunctionExprent func = (FunctionExprent)expr;
         switch (func.getFuncType()) {
-          case FunctionExprent.FUNCTION_IIF:
+          case FunctionExprent.FUNCTION_IIF -> {
             processExprent(func.getLstOperands().get(0), varmaparr, stat, calcLiveVars);
 
             SFormsFastMapDirect varmapFalse;
@@ -188,8 +193,8 @@ public class SSAUConstructorSparseEx {
             varmaparr[1] = null;
 
             finished = true;
-            break;
-          case FunctionExprent.FUNCTION_CADD:
+          }
+          case FunctionExprent.FUNCTION_CADD -> {
             processExprent(func.getLstOperands().get(0), varmaparr, stat, calcLiveVars);
 
             SFormsFastMapDirect[] varmaparrAnd = new SFormsFastMapDirect[]{new SFormsFastMapDirect(varmaparr[0]), null};
@@ -202,8 +207,8 @@ public class SSAUConstructorSparseEx {
             varmaparr[0] = varmaparrAnd[0];
 
             finished = true;
-            break;
-          case FunctionExprent.FUNCTION_COR:
+          }
+          case FunctionExprent.FUNCTION_COR -> {
             processExprent(func.getLstOperands().get(0), varmaparr, stat, calcLiveVars);
 
             SFormsFastMapDirect[] varmaparrOr =
@@ -217,7 +222,9 @@ public class SSAUConstructorSparseEx {
             varmaparr[0] = mergeMaps(varmaparr[0], varmaparrOr[0]);
 
             finished = true;
+          }
         }
+      }
     }
 
     if (!finished) {
@@ -301,11 +308,7 @@ public class SSAUConstructorSparseEx {
       FunctionExprent func = (FunctionExprent)expr;
 
       switch (func.getFuncType()) {
-        case FunctionExprent.FUNCTION_IMM:
-        case FunctionExprent.FUNCTION_MMI:
-        case FunctionExprent.FUNCTION_IPP:
-        case FunctionExprent.FUNCTION_PPI:
-
+        case FunctionExprent.FUNCTION_IMM, FunctionExprent.FUNCTION_MMI, FunctionExprent.FUNCTION_IPP, FunctionExprent.FUNCTION_PPI -> {
           if (func.getLstOperands().get(0).type == Exprent.EXPRENT_VAR) {
             VarExprent var = (VarExprent)func.getLstOperands().get(0);
             Integer varindex = var.getIndex();
@@ -340,6 +343,7 @@ public class SSAUConstructorSparseEx {
             }
             setCurrentVar(varmap, varindex, var.getVersion());
           }
+        }
       }
     }
     else if (expr.type == Exprent.EXPRENT_VAR) {
@@ -406,7 +410,6 @@ public class SSAUConstructorSparseEx {
   private void createOrUpdatePhiNode(VarVersionPair phivar, FastSparseSet<Integer> vers, Statement stat) {
 
     FastSparseSet<Integer> versCopy = vers.getCopy();
-    HashSet<Integer> phiVers = new HashSet<>();
 
     // take into account the corresponding mm/pp node if existing
     int ppvers = phantomppnodes.containsKey(phivar) ? phantomppnodes.get(phivar).version : -1;
@@ -429,7 +432,6 @@ public class SSAUConstructorSparseEx {
         }
         else {
           versCopy.remove(verssrc);
-          phiVers.add(verssrc);
         }
       }
     }
@@ -457,8 +459,6 @@ public class SSAUConstructorSparseEx {
       edge = new VarVersionEdge(VarVersionEdge.EDGE_GENERAL, tempnode, phinode);
       tempnode.addSuccessor(edge);
       phinode.addPredecessor(edge);
-
-      phiVers.add(tempver);
     }
 
     ssuversions.addNodes(colnodes, colpaars);
@@ -703,9 +703,7 @@ public class SSAUConstructorSparseEx {
     SFormsFastMapDirect map;
 
     switch (stat.type) {
-      case CATCH_ALL:
-      case TRY_CATCH:
-
+      case CATCH_ALL, TRY_CATCH -> {
         List<VarExprent> lstVars;
         if (stat.type == StatementType.CATCH_ALL) {
           lstVars = ((CatchAllStatement)stat).getVars();
@@ -725,6 +723,7 @@ public class SSAUConstructorSparseEx {
           //ssuversions.createOrGetNode(new VarVersionPair(varindex, version));
           ssuversions.createNode(new VarVersionPair(varindex, version));
         }
+      }
     }
 
     for (Statement st : stat.getStats()) {

@@ -31,20 +31,21 @@ public final class MethodDescriptor {
       int indexFrom = -1, ind, len = parameters.length(), index = 0;
       while (index < len) {
         switch (parameters.charAt(index)) {
-          case '[':
+          case '[' -> {
             if (indexFrom < 0) {
               indexFrom = index;
             }
-            break;
-          case 'L':
+          }
+          case 'L' -> {
             ind = parameters.indexOf(";", index);
             lst.add(parameters.substring(indexFrom < 0 ? index : indexFrom, ind + 1));
             index = ind;
             indexFrom = -1;
-            break;
-          default:
+          }
+          default -> {
             lst.add(parameters.substring(indexFrom < 0 ? index : indexFrom, index + 1));
             indexFrom = -1;
+          }
         }
         index++;
       }
@@ -113,9 +114,8 @@ public final class MethodDescriptor {
   @Override
   public boolean equals(Object o) {
     if (o == this) return true;
-    if (!(o instanceof MethodDescriptor)) return false;
+    if (!(o instanceof MethodDescriptor md)) return false;
 
-    MethodDescriptor md = (MethodDescriptor)o;
     return ret.equals(md.ret) && Arrays.equals(params, md.params);
   }
 

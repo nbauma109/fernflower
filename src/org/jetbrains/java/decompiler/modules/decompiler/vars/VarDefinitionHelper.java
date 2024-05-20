@@ -217,17 +217,11 @@ public class VarDefinitionHelper {
           stack.clear();
 
           switch (st.type) {
-            case SEQUENCE:
-              stack.addAll(0, st.getStats());
-              break;
-            case IF:
-            case ROOT:
-            case SWITCH:
-            case SYNCHRONIZED:
-              stack.add(st.getFirst());
-              break;
-            default:
+            case SEQUENCE -> stack.addAll(0, st.getStats());
+            case IF, ROOT, SWITCH, SYNCHRONIZED -> stack.add(st.getFirst());
+            default -> {
               return st;
+            }
           }
         }
       }
@@ -249,8 +243,7 @@ public class VarDefinitionHelper {
       List<Exprent> currVars = new ArrayList<>();
 
       for (Object obj : stat.getSequentialObjects()) {
-        if (obj instanceof Statement) {
-          Statement st = (Statement)obj;
+        if (obj instanceof Statement st) {
           childVars.addAll(initStatement(st));
 
           if (st.type == StatementType.DO) {

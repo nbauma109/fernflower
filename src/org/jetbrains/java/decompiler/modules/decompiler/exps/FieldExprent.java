@@ -31,7 +31,7 @@ public class FieldExprent extends Exprent {
   private final FieldDescriptor descriptor;
 
   public FieldExprent(LinkConstant cn, Exprent instance, Set<Integer> bytecodeOffsets) {
-    this(cn.elementname, cn.classname, instance == null, instance, FieldDescriptor.parseDescriptor(cn.descriptor), bytecodeOffsets);
+    this(cn.elementName, cn.className, instance == null, instance, FieldDescriptor.parseDescriptor(cn.descriptor), bytecodeOffsets);
   }
 
   public FieldExprent(String name, String classname, boolean isStatic, Exprent instance, FieldDescriptor descriptor, Set<Integer> bytecodeOffsets) {
@@ -153,9 +153,8 @@ public class FieldExprent extends Exprent {
   @Override
   public boolean equals(Object o) {
     if (o == this) return true;
-    if (!(o instanceof FieldExprent)) return false;
+    if (!(o instanceof FieldExprent ft)) return false;
 
-    FieldExprent ft = (FieldExprent)o;
     return Objects.equals(name, ft.getName()) &&
            Objects.equals(classname, ft.getClassname()) &&
            isStatic == ft.isStatic() &&

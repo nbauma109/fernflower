@@ -1,8 +1,7 @@
-// Copyright 2000-2022 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
+// Copyright 2000-2023 JetBrains s.r.o. and contributors. Use of this source code is governed by the Apache 2.0 license.
 package org.jetbrains.java.decompiler;
 
 import org.jetbrains.java.decompiler.main.DecompilerContext;
-import org.jetbrains.java.decompiler.main.decompiler.ConsoleDecompiler;
 import org.jetbrains.java.decompiler.main.extern.ClassFormatException;
 import org.jetbrains.java.decompiler.main.extern.IFernflowerPreferences;
 import org.junit.After;
@@ -11,12 +10,16 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
-import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.jetbrains.java.decompiler.DecompilerTestFixture.assertFilesEqual;
 import static org.junit.Assert.assertTrue;
 
@@ -33,14 +36,17 @@ public class SingleClassesTest {
   @Before
   public void setUp() throws IOException {
     fixture = new DecompilerTestFixture();
-    fixture.setUp(IFernflowerPreferences.BYTECODE_SOURCE_MAPPING, "1",
-                  IFernflowerPreferences.DUMP_ORIGINAL_LINES, "1",
-                  IFernflowerPreferences.IGNORE_INVALID_BYTECODE, "1",
-                  IFernflowerPreferences.VERIFY_ANONYMOUS_CLASSES, "1");
+    fixture.setUp(Map.of(IFernflowerPreferences.BYTECODE_SOURCE_MAPPING, "1",
+                         IFernflowerPreferences.DUMP_ORIGINAL_LINES, "1",
+                         IFernflowerPreferences.IGNORE_INVALID_BYTECODE, "1",
+                         IFernflowerPreferences.VERIFY_ANONYMOUS_CLASSES, "1",
+                         IFernflowerPreferences.CONVERT_PATTERN_SWITCH, "1",
+                         IFernflowerPreferences.CONVERT_RECORD_PATTERN, "1"
+    ));
   }
 
   @After
-  public void tearDown() {
+  public void tearDown() throws IOException {
     fixture.tearDown();
     fixture = null;
   }
@@ -142,6 +148,22 @@ public class SingleClassesTest {
   @Test public void testIntVarMerge() { doTest("pkg/TestIntVarMerge"); }
   @Test public void testSwitchOnStringsJavac() { doTest("pkg/TestSwitchOnStringsJavac"); }
   @Test public void testSwitchOnStringsEcj() { doTest("pkg/TestSwitchOnStringsEcj"); }
+  @Test public void testSwitchRules() { doTest("pkg/TestSwitchRules"); }
+  @Test public void testSwitchSimpleReferencesJavac() { doTest("pkg/TestSwitchSimpleReferencesJavac"); }
+  @Test public void testSwitchClassReferencesJavac() { doTest("pkg/TestSwitchClassReferencesJavac"); }
+  @Test public void testSwitchClassReferencesEcj() { doTest("pkg/TestSwitchClassReferencesEcj"); }
+  @Test public void testSwitchClassReferencesFastExitJavac() { doTest("pkg/TestSwitchClassReferencesFastExitJavac"); }
+  @Test public void testSwitchClassReferencesFastExitEcj() { doTest("pkg/TestSwitchClassReferencesFastExitEcj"); }
+  @Test public void testSwitchGuardedJavac() { doTest("pkg/TestSwitchGuardedJavac"); }
+  @Test public void testSwitchGuarded2Javac() { doTest("pkg/TestSwitchGuarded2Javac"); }
+  @Test public void testSwitchGuardedEcj() { doTest("pkg/TestSwitchGuardedEcj"); }
+
+  //ecj doesn't support here, because it produces code with unnecessary assignments,
+  //which can confuse decompiler with ordinary ones
+  @Test public void testSimpleInstanceOfRecordPatternJavac() { doTest("pkg/TestSimpleInstanceOfRecordPatternJavac"); }
+  @Test public void testComplexInstanceOfRecordPatternJavac() { doTest("pkg/TestComplexInstanceOfRecordPatternJavac"); }
+  @Test public void testSwitchWithDeconstructionsWithoutNestedJavac() { doTest("pkg/TestSwitchWithDeconstructionsWithoutNestedJavac"); }
+  @Test public void testSwitchNestedDeconstructionJavac() { doTest("pkg/TestSwitchNestedDeconstructionsJavac"); }
 
   // TODO: fix all below
   //@Test public void testUnionType() { doTest("pkg/TestUnionType"); }
@@ -220,49 +242,55 @@ public class SingleClassesTest {
     doTest("patterns/TestInstanceofWithPattern");
   }
   @Test public void testInstanceofVarNotSupported() {
-    // bytecode version of this test data doesn't support patterns in instanceof, so no modifications regarding that are applied
+    // the bytecode version of this test data doesn't support patterns in `instanceof`, so no modifications regarding that are applied
     doTest("patterns/TestInstanceofPatternNotSupported");
   }
 
   @Test(expected = ClassFormatException.class)
   public void testUnsupportedConstantPoolEntry() { doTest("java11/TestUnsupportedConstantPoolEntry"); }
 
-  private void doTest(String testFile, String... companionFiles) {
-    ConsoleDecompiler decompiler = fixture.getDecompiler();
+  @Test public void testSwitchOnStatic() { doTest("pkg/SwitchOnStatic"); }
 
-    File classFile = new File(fixture.getTestDataDir(), "/classes/" + testFile + ".class");
-    assertTrue(classFile.isFile());
-    for (File file : collectClasses(classFile)) {
-      decompiler.addSource(file);
+  private void doTest(String testFile, String... companionFiles) {
+    var decompiler = fixture.getDecompiler();
+
+    var classFile = fixture.getTestDataDir().resolve("classes/" + testFile + ".class");
+    assertThat(classFile).isRegularFile();
+    for (var file : collectClasses(classFile)) {
+      decompiler.addSource(file.toFile());
     }
 
     for (String companionFile : companionFiles) {
-      File companionClassFile = new File(fixture.getTestDataDir(), "/classes/" + companionFile + ".class");
-      assertTrue(companionClassFile.isFile());
-      for (File file : collectClasses(companionClassFile)) {
-        decompiler.addSource(file);
+      var companionClassFile = fixture.getTestDataDir().resolve("classes/" + companionFile + ".class");
+      assertThat(companionClassFile).isRegularFile();
+      for (var file : collectClasses(companionClassFile)) {
+        decompiler.addSource(file.toFile());
       }
     }
 
     decompiler.decompileContext();
 
-    String testName = classFile.getName().substring(0, classFile.getName().length() - 6);
-    File decompiledFile = new File(fixture.getTargetDir(), testName + ".java");
-    assertTrue(decompiledFile.isFile());
-    File referenceFile = new File(fixture.getTestDataDir(), "results/" + testName + ".dec");
-    assertTrue(referenceFile.isFile());
+    var decompiledFile = fixture.getTargetDir().resolve(classFile.getFileName().toString().replace(".class", ".java"));
+    assertThat(decompiledFile).isRegularFile();
+    assertTrue(Files.isRegularFile(decompiledFile));
+    var referenceFile = fixture.getTestDataDir().resolve("results/" + classFile.getFileName().toString().replace(".class", ".dec"));
+    assertThat(referenceFile).isRegularFile();
     assertFilesEqual(referenceFile, decompiledFile);
   }
 
-  private static List<File> collectClasses(File classFile) {
-    List<File> files = new ArrayList<>();
+  static List<Path> collectClasses(Path classFile) {
+    var files = new ArrayList<Path>();
     files.add(classFile);
 
-    File parent = classFile.getParentFile();
+    var parent = classFile.getParent();
     if (parent != null) {
-      final String pattern = classFile.getName().replace(".class", "") + "\\$.+\\.class";
-      File[] inner = parent.listFiles((dir, name) -> name.matches(pattern));
-      if (inner != null) Collections.addAll(files, inner);
+      var glob = classFile.getFileName().toString().replace(".class", "$*.class");
+      try (DirectoryStream<Path> inner = Files.newDirectoryStream(parent, glob)) {
+        inner.forEach(files::add);
+      }
+      catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
 
     return files;
